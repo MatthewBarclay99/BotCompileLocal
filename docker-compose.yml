@@ -1,0 +1,6 @@
+services:
+  discordchickenmessagebot:
+    build: .
+    environment:
+      - TOKEN
+    restart: unless-stopped

@@ -1,0 +1,27 @@
+name: raspberrypi
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  run:
+    runs-on: self-hosted
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v3
+
+#      - name: look around
+#        run: ls
+
+#      - name: Update Container
+#        run: git pull
+
+      - name: Run Container
+        run: docker compose up --force-recreate --build -d
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+
+      - name: Cleanup Unused Images
+        run: docker image prune -f
