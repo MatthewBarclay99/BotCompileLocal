@@ -5,11 +5,11 @@ from discord.ext import tasks as discordTasks
 import requests
 from datetime import datetime, time
 from collections import defaultdict
-import os
+#import os
 
 with open('config.yaml', 'r') as file:
     configFile = yaml.safe_load(file)
-TOKEN = os.environ['TOKEN'] 
+TOKEN = configFile['TOKEN'] 
 #tasks = configFile['tasks']
 #connect to discord 
 client = discord.Client(intents = discord.Intents.all())

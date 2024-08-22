@@ -1,0 +1,1 @@
+docker buildx  build --platform linux/arm64 --pull --file "D:\Projects\BotCompileLocal/Dockerfile" --tag "discordchickenmessagebot:latest" --label "com.microsoft.created-by=visual-studio-code" "D:\Projects\BotCompileLocal" 
