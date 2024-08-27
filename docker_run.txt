@@ -1,1 +1,6 @@
-docker buildx  build --platform linux/arm64 --pull --file "D:\Projects\BotCompileLocal/Dockerfile" --tag "discordchickenmessagebot:latest" --label "com.microsoft.created-by=visual-studio-code" "D:\Projects\BotCompileLocal" 
+#Powershell VSCode:
+docker buildx  build --platform linux/arm64 --pull --file "D:\Projects\BotCompileLocal/Dockerfile" --tag "discordchickenmessagebot:latest" --label "com.microsoft.created-by=visual-studio-code" "D:\Projects\BotCompileLocal"
+
+#On local Pi
+docker pull mattbarclay99/discordchickenmessagebot:latest
+docker run -d --restart unless-stopped mattbarclay99/discordchickenmessagebot:latest 

@@ -400,12 +400,14 @@ def find_team_result(league_results, team_id):
     return team, opponent
 
 def get_API(teamID, sport):
+    global baseURL
     API_URL = baseURL.get(sport)
     today = datetime.today().strftime('%Y%m%d')
     league_scores = get_league_scores_today(API_URL, today)
     return find_team_result(league_scores, teamID)
 
 def printRewardsPossible():
+    global rewardDict
     rewards_text = ""
     todays_rewards = defaultdict(int)
     rewardCounter=0
@@ -424,6 +426,7 @@ def printRewardsPossible():
 
 
 def printRewards():
+    global rewardDict
     rewards_text = ""
     todays_rewards = []
     rewardCounter=0
@@ -447,7 +450,15 @@ def printRewards():
    
 
 async def printRewardsasync():
-    print('sending daily message...')
+    #Start debugging
+    for guild in client.guilds:
+        for channel in guild.text_channels:
+            if(channel.name == 'general'):
+                if(guild.name == 'MattyB\'s server'):
+                    await channel.send(content = 'sending daily message...')
+    #End debugging
+
+    global rewardDict
     rewards_text = ""
     todays_rewards = []
     rewardCounter=0
@@ -472,7 +483,7 @@ async def printRewardsasync():
         #channel = discord.utils.get(client.get_all_channels(), name='general')
         #await channel.send(embed = embed)
         for guild in client.guilds:
-            for channel in guild.channels:
+            for channel in guild.text_channels:
                 if(channel.name == 'general'):
                     await channel.send(embed = embed)
 
