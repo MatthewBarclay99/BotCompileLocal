@@ -3,4 +3,4 @@ docker buildx  build --platform linux/arm64 --pull --file "D:\Projects\BotCompil
 
 #On local Pi
 docker pull mattbarclay99/discordchickenmessagebot:latest
-docker run -d --restart unless-stopped mattbarclay99/discordchickenmessagebot:latest 
+docker run -d --restart unless-stopped -e TZ=America/Los_Angeles mattbarclay99/discordchickenmessagebot:latest 
