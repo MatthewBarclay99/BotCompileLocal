@@ -451,11 +451,11 @@ def printRewards():
 
 async def printRewardsasync():
     #Start debugging
-    for guild in client.guilds:
-        for channel in guild.text_channels:
-            if(channel.name == 'general'):
-                if(guild.name == 'MattyB\'s server'):
-                    await channel.send(content = 'sending daily message...')
+    #for guild in client.guilds:
+    #    for channel in guild.text_channels:
+    #        if(channel.name == 'general'):
+    #            if(guild.name == 'MattyB\'s server'):
+    #                await channel.send(content = 'sending daily message...')
     #End debugging
 
     global rewardDict
