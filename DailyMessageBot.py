@@ -5,7 +5,7 @@ from discord.ext import tasks as discordTasks
 import requests
 from datetime import datetime, time
 from collections import defaultdict
-#import os
+import sqlite3
 
 with open('config.yaml', 'r') as file:
     configFile = yaml.safe_load(file)
@@ -333,6 +333,44 @@ async def viewBlockedDays(ctx):
     embed = discord.Embed(description = message)
     await ctx.send(embed = embed)
 
+def sqliteQuery(daysAgo):
+    try:
+        sqliteConnection = sqlite3.connect('/data/chickenData.db')
+        cursor = sqliteConnection.cursor()
+        #print("Connected to SQLite")
+
+        sqlite_select_with_param = """SELECT SUM(chicken),
+SUM(panda),
+SUM(pizza)
+FROM (SELECT *
+FROM chickenHistory
+WHERE date > (SELECT DATETIME('now', '-' || ? || ' day'))) result;"""
+
+        cursor.execute(sqlite_select_with_param, (daysAgo,))
+        records = cursor.fetchone()
+        cursor.close()
+
+    except sqlite3.Error as error:
+        print("Failed to retrieve Python variable from sqlite table", error)
+    
+    finally:
+        if sqliteConnection:
+            sqliteConnection.close()
+            #print("The SQLite connection is closed")
+            return records
+
+@client.command()
+async def chickenHistory(ctx, daysAgo=30):
+    if not isinstance(daysAgo, int):
+        embed = discord.Embed(description = 'Error: number of days must be an integer')
+        await ctx.send(embed = embed)
+        return
+    records = sqliteQuery(daysAgo)
+    historyText= "In the past "+str(daysAgo)+" days, the following rewards have been available:" + "\n" + str(records[0]) + "x Chicken" + "\n" + str(records[1]) + "x Panda" + "\n" + str(records[2]) + "x Pizza" 
+    print(historyText)
+    embed = discord.Embed(description = historyText)
+    await ctx.send(embed = embed)
+
 
 #---------General Functions---------
 # #randomly selects 'numTasks' number of tasks from yaml file, weighted
@@ -371,6 +409,32 @@ async def viewBlockedDays(ctx):
 #     for user in users:
 #         await user.create_dm()
 #         await user.dm_channel.send(embed=embed)
+
+
+# https://pynative.com/python-sqlite-insert-into-table/
+def insertVaribleIntoTable(date, chicken, panda, pizza):
+    try:
+        sqliteConnection = sqlite3.connect('/data/chickenData.db')
+        cursor = sqliteConnection.cursor()
+        #print("Connected to SQLite")
+
+        sqlite_insert_with_param = """INSERT INTO chickenHistory
+                          (date, chicken, panda, pizza) 
+                          VALUES (?, ?, ?, ?);"""
+
+        data_tuple = (date, chicken, panda, pizza)
+        cursor.execute(sqlite_insert_with_param, data_tuple)
+        sqliteConnection.commit()
+        #print("Python Variables inserted successfully into SqliteDb_developers table")
+
+        cursor.close()
+
+    except sqlite3.Error as error:
+        print("Failed to insert Python variable into sqlite table", error)
+    finally:
+        if sqliteConnection:
+            sqliteConnection.close()
+            #print("The SQLite connection is closed")
 
 
 
@@ -424,12 +488,11 @@ def printRewardsPossible():
         rewards_text = rewards_text + "\n" + str(value) + "x " + key
     return rewards_text
 
-
-def printRewards():
+def searchRewards():
     global rewardDict
-    rewards_text = ""
     todays_rewards = []
     rewardCounter=0
+    reward_tags = defaultdict(int)
     for team in rewardDict:
         teamData, opponentData = get_API(team.get('ID'), team.get('sport'))
         if(teamData==""):
@@ -442,7 +505,13 @@ def printRewards():
                     if(reward_i.get('homeReq') & bool(teamData.get('homeAway')!="home")):
                         break
                     todays_rewards.append(reward_i.get('reward_text'))
+                    reward_tags[reward_i.get('reward_tag')]+=1
                     rewardCounter+=1
+    return todays_rewards, rewardCounter, reward_tags
+
+def printRewards():
+    rewards_text = ""
+    todays_rewards, rewardCounter, dummy = searchRewards()
     rewards_text = ("Today you have " + str(rewardCounter) + " rewards available to redeem:")
     for text in todays_rewards: 
         rewards_text = rewards_text + "\n" + text
@@ -458,34 +527,22 @@ async def printRewardsasync():
     #                await channel.send(content = 'sending daily message...')
     #End debugging
 
-    global rewardDict
     rewards_text = ""
-    todays_rewards = []
-    rewardCounter=0
-    for team in rewardDict:
-        teamData, opponentData = get_API(team.get('ID'), team.get('sport'))
-        if(teamData==""):
-            break
-        elif(teamData.get('incomplete')):
-            break
-        else:
-            for reward_i in team.get('rewards'):
-                if(reward_i.get('rewardFUN')(teamData,reward_i.get('minScore'),opponentData)):
-                    if(reward_i.get('homeReq') & bool(teamData.get('homeAway')!="home")):
-                        break
-                    todays_rewards.append(reward_i.get('reward_text'))
-                    rewardCounter+=1
+    todays_rewards, rewardCounter, reward_tags = searchRewards()
     for text in todays_rewards: 
         rewards_text = rewards_text + "\n" + text
     if(rewards_text!=""):
+        insertVaribleIntoTable(datetime.today().strftime('%Y-%m-%d'),
+                               reward_tags.get('chicken'),
+                               reward_tags.get('panda'),
+                               reward_tags.get('pizza'))
         rewards_text = "🚨🚨🚨" +"\n" + str(rewardCounter) + " rewards today:" + "\n" + rewards_text
         embed = discord.Embed(description = rewards_text)
-        #channel = discord.utils.get(client.get_all_channels(), name='general')
-        #await channel.send(embed = embed)
         for guild in client.guilds:
             for channel in guild.text_channels:
                 if(channel.name == 'general'):
-                    await channel.send(embed = embed)
+                    await channel.send(embed = embed, delete_after=86399)
+        
 
 #methods for getting suffix in date, ex "May 10th"
 #decides what suffix to use
