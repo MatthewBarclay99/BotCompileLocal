@@ -1,3 +1,6 @@
 # Config files
 *.yaml
 *.env
+*.code-workspace
+*.ppk
+

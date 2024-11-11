@@ -3,7 +3,9 @@
 **/.classpath
 **/.dockerignore
 **/.env
-#config.yaml
+**/.ppk
+**/.code-workspace
+config.yaml
 **/.git
 **/.gitignore
 **/.project

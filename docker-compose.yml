@@ -3,4 +3,4 @@ services:
     build: .
     environment:
       - TOKEN
-    restart: unless-stopped
+    restart: always

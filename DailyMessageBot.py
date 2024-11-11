@@ -7,7 +7,7 @@ from datetime import datetime, time
 from collections import defaultdict
 import sqlite3
 
-with open('config.yaml', 'r') as file:
+with open('/data/config.yaml', 'r') as file:
     configFile = yaml.safe_load(file)
 TOKEN = configFile['TOKEN'] 
 #tasks = configFile['tasks']
@@ -61,7 +61,7 @@ Dodgers = {'ID':"19",
                     'reward_tag':'panda'}
                     ]
           }
-Ducks =   {'ID':"25",
+Ducks = {'ID':"25",
            'sport':"hockey",
          'rewards':[{'rewardFUN':scoreAtLeast,
                     'minScore':5,
@@ -102,8 +102,8 @@ async def on_ready():
 
 
 @client.command()
-async def chickenToday(ctx):
-    rewards_text = printRewards()
+async def chickenToday(ctx, debugDate=None):
+    rewards_text = printRewards(debugDate)
     embed = discord.Embed(description = rewards_text)
     await ctx.send(embed = embed)
 
@@ -463,10 +463,14 @@ def find_team_result(league_results, team_id):
             break
     return team, opponent
 
-def get_API(teamID, sport):
+def get_API(teamID, sport, debugDate=None):
     global baseURL
     API_URL = baseURL.get(sport)
-    today = datetime.today().strftime('%Y%m%d')
+    if debugDate is not None:
+        today=str(debugDate)
+    else:
+        today = datetime.today().strftime('%Y%m%d')
+
     league_scores = get_league_scores_today(API_URL, today)
     return find_team_result(league_scores, teamID)
 
@@ -480,38 +484,40 @@ def printRewardsPossible():
         if(teamData!=""):
             for reward_i in team.get('rewards'):
                 if(reward_i.get('homeReq') & bool(teamData.get('homeAway')!="home")):
-                    break
-                todays_rewards[reward_i.get('reward_tag')]+=1
-                rewardCounter+=1
+                    pass
+                else:
+                    todays_rewards[reward_i.get('reward_tag')]+=1
+                    rewardCounter+=1
     rewards_text = ("There are " + str(rewardCounter) + " rewards possible today:")
     for key, value in todays_rewards.items(): 
         rewards_text = rewards_text + "\n" + str(value) + "x " + key
     return rewards_text
 
-def searchRewards():
+def searchRewards(debugDate=None):
     global rewardDict
     todays_rewards = []
     rewardCounter=0
     reward_tags = defaultdict(int)
     for team in rewardDict:
-        teamData, opponentData = get_API(team.get('ID'), team.get('sport'))
+        teamData, opponentData = get_API(team.get('ID'), team.get('sport'),debugDate)
         if(teamData==""):
-            break
+            pass
         elif(teamData.get('incomplete')):
-            break
+            pass
         else:
             for reward_i in team.get('rewards'):
                 if(reward_i.get('rewardFUN')(teamData,reward_i.get('minScore'),opponentData)):
                     if(reward_i.get('homeReq') & bool(teamData.get('homeAway')!="home")):
-                        break
-                    todays_rewards.append(reward_i.get('reward_text'))
-                    reward_tags[reward_i.get('reward_tag')]+=1
-                    rewardCounter+=1
+                        pass
+                    else:
+                        todays_rewards.append(reward_i.get('reward_text'))
+                        reward_tags[reward_i.get('reward_tag')]+=1
+                        rewardCounter+=1
     return todays_rewards, rewardCounter, reward_tags
 
-def printRewards():
+def printRewards(debugDate=None):
     rewards_text = ""
-    todays_rewards, rewardCounter, dummy = searchRewards()
+    todays_rewards, rewardCounter, dummy = searchRewards(debugDate)
     rewards_text = ("Today you have " + str(rewardCounter) + " rewards available to redeem:")
     for text in todays_rewards: 
         rewards_text = rewards_text + "\n" + text
