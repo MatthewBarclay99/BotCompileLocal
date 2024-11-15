@@ -10,6 +10,7 @@ import sqlite3
 with open('/data/config.yaml', 'r') as file:
     configFile = yaml.safe_load(file)
 TOKEN = configFile['TOKEN'] 
+password = configFile['password']
 #tasks = configFile['tasks']
 #connect to discord 
 client = discord.Client(intents = discord.Intents.all())
@@ -99,6 +100,18 @@ async def on_ready():
 #         output += word + ' '
 #     embed = discord.Embed(description = output)
 #     await ctx.send(embed = embed)
+
+async def pwdCheck(ctx, pwd):
+    if pwd == "":
+        embed = discord.Embed(description = "Password required, please try again with password appended.")
+        await ctx.send(embed = embed)
+        return False
+    elif str(pwd) != str(password):
+        embed = discord.Embed(description = "Password incorrect, please try again with password appended.")
+        await ctx.send(embed = embed)
+        return False
+    else: 
+        return True
 
 
 @client.command()
@@ -229,32 +242,33 @@ async def chickenPossible(ctx):
 #     await ctx.send(embed = embed)
 
 @client.command()
-async def setMessageTime(ctx, newTime):
-    if not ":" in newTime:
-        embed = discord.Embed(description = 'Error: time must be in hour:minutes and 24 hour format (ex. 20:35).')
+async def setMessageTime(ctx, newTime, pwd=""):
+    if await pwdCheck(ctx, pwd):
+        if not ":" in newTime:
+            embed = discord.Embed(description = 'Error: time must be in hour:minutes and 24 hour format (ex. 20:35).')
+            await ctx.send(embed = embed)
+            return
+        newHour = int(newTime.split(':')[0])
+        newMinutes = int(newTime.split(':')[1])
+        if newHour > 23 or newHour < 0:
+            embed = discord.Embed(description = 'Error: invalid hour. Must be from 0 to 23')
+            await ctx.send(embed = embed)
+            return
+        if newMinutes > 59 or newMinutes < 0:
+            embed = discord.Embed(description = 'Error: invalid minutes. Must be from 0 to 59')
+            await ctx.send(embed = embed)
+            return
+        global hours, minutes, configFile
+        hours = newHour
+        minutes = newMinutes
+        configFile['messageTime']['hour'] = hours
+        configFile['messageTime']['minutes'] = minutes
+        with open('config.yaml', 'w') as file:
+            yaml.dump(configFile, file, default_flow_style=False)
+        messageDaily.change_interval(time=time(hour=hours,minute=minutes, tzinfo=local_tz))
+        messageDaily.restart()
+        embed = discord.Embed(description = ' -- Time set (will go into effect after the next scheduled message)')
         await ctx.send(embed = embed)
-        return
-    newHour = int(newTime.split(':')[0])
-    newMinutes = int(newTime.split(':')[1])
-    if newHour > 23 or newHour < 0:
-        embed = discord.Embed(description = 'Error: invalid hour. Must be from 0 to 23')
-        await ctx.send(embed = embed)
-        return
-    if newMinutes > 59 or newMinutes < 0:
-        embed = discord.Embed(description = 'Error: invalid minutes. Must be from 0 to 59')
-        await ctx.send(embed = embed)
-        return
-    global hours, minutes, configFile
-    hours = newHour
-    minutes = newMinutes
-    configFile['messageTime']['hour'] = hours
-    configFile['messageTime']['minutes'] = minutes
-    with open('config.yaml', 'w') as file:
-        yaml.dump(configFile, file, default_flow_style=False)
-    messageDaily.change_interval(time=time(hour=hours,minute=minutes, tzinfo=local_tz))
-    messageDaily.restart()
-    embed = discord.Embed(description = ' -- Time set (will go into effect after the next scheduled message)')
-    await ctx.send(embed = embed)
     
 
 
@@ -264,62 +278,64 @@ async def viewMessageTime(ctx):
     await ctx.send(embed = embed)
 
 @client.command()
-async def blockDays(ctx, *days):
-    global blacklistedDays
-    days = list(days)
-    if len(days) < 1:
-        embed = discord.Embed(description = "Error: no days were provided")
-        await ctx.send(embed = embed)
-        return
-    possibleDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    for day in days:
-        if not day.lower() in possibleDays:
-            embed = discord.Embed(description = "Error: " + str(day) + " is not a valid day. Nothing added.")
+async def blockDays(ctx, *days, pwd=""):
+    if await pwdCheck(ctx, pwd):
+        global blacklistedDays
+        days = list(days)
+        if len(days) < 1:
+            embed = discord.Embed(description = "Error: no days were provided")
             await ctx.send(embed = embed)
             return
-        if day.lower() in blacklistedDays:
-            embed = discord.Embed(description = str(day) + " is already black listed. It will be ignored")
+        possibleDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        for day in days:
+            if not day.lower() in possibleDays:
+                embed = discord.Embed(description = "Error: " + str(day) + " is not a valid day. Nothing added.")
+                await ctx.send(embed = embed)
+                return
+            if day.lower() in blacklistedDays:
+                embed = discord.Embed(description = str(day) + " is already black listed. It will be ignored")
+                await ctx.send(embed = embed)
+                days.remove(day.lower())
+                
+        if len(days) < 1:
+            embed = discord.Embed(description = "Nothing else to do.")
             await ctx.send(embed = embed)
-            days.remove(day.lower())
-            
-    if len(days) < 1:
-        embed = discord.Embed(description = "Nothing else to do.")
-        await ctx.send(embed = embed)
 
-    for item in days:
-        blacklistedDays.append(item)
-    message = " -- Days added to blacklist" if len(days) > 1 else " -- Day added to blacklist."
-    embed = discord.Embed(description = message)
-    await ctx.send(embed = embed)
+        for item in days:
+            blacklistedDays.append(item)
+        message = " -- Days added to blacklist" if len(days) > 1 else " -- Day added to blacklist."
+        embed = discord.Embed(description = message)
+        await ctx.send(embed = embed)
 
 @client.command()
-async def unblockDays(ctx, *days):
-    global blacklistedDays
-    days = list(days)
-    if len(days) < 1:
-        embed = discord.Embed(description = "Error: no days were provided")
-        await ctx.send(embed = embed)
-        return
-    possibleDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    for day in days:
-        if not day.lower() in possibleDays:
-            embed = discord.Embed(description = "Error: " + str(day) + " is not a valid day. Nothing added.")
+async def unblockDays(ctx, *days, pwd=""):
+    if await pwdCheck(ctx, pwd):
+        global blacklistedDays
+        days = list(days)
+        if len(days) < 1:
+            embed = discord.Embed(description = "Error: no days were provided")
             await ctx.send(embed = embed)
             return
-        if not day.lower() in blacklistedDays:
-            embed = discord.Embed(description = str(day) + " is not black listed. It will be ignored")
+        possibleDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        for day in days:
+            if not day.lower() in possibleDays:
+                embed = discord.Embed(description = "Error: " + str(day) + " is not a valid day. Nothing added.")
+                await ctx.send(embed = embed)
+                return
+            if not day.lower() in blacklistedDays:
+                embed = discord.Embed(description = str(day) + " is not black listed. It will be ignored")
+                await ctx.send(embed = embed)
+                days.remove(day.lower())
+                
+        if len(days) < 1:
+            embed = discord.Embed(description = "Nothing else to do.")
             await ctx.send(embed = embed)
-            days.remove(day.lower())
-            
-    if len(days) < 1:
-        embed = discord.Embed(description = "Nothing else to do.")
-        await ctx.send(embed = embed)
 
-    for item in days:
-        blacklistedDays.remove(item.lower())
-    message = " -- Days removed from blacklist" if len(days) > 1 else " -- Day removed from blacklist."
-    embed = discord.Embed(description = message)
-    await ctx.send(embed = embed)
+        for item in days:
+            blacklistedDays.remove(item.lower())
+        message = " -- Days removed from blacklist" if len(days) > 1 else " -- Day removed from blacklist."
+        embed = discord.Embed(description = message)
+        await ctx.send(embed = embed)
 
 @client.command()
 async def viewBlockedDays(ctx):

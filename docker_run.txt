@@ -4,3 +4,6 @@ docker buildx  build --platform linux/arm64 --pull --file "D:\Projects\BotCompil
 #On local Pi
 docker pull mattbarclay99/discordchickenmessagebot:latest
 docker run -d --restart always -e TZ=America/Los_Angeles -v /home/matt/data:/data mattbarclay99/discordchickenmessagebot:latest 
+
+#If already running on Pi w/ watchtower
+docker run -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower --run-once
