@@ -1,0 +1,7 @@
+TOKEN: PASTE_TOKEN_HERE_PLAIN_TEXT
+messageTime:
+    hour: 22
+    minutes: 10
+# days to not send message, capitilization is ignored but spelling is not
+blacklistedDays: []
+password: SET_PASSWORD_HERE_PLAIN_TEXT

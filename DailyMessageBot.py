@@ -114,13 +114,17 @@ async def pwdCheck(ctx, pwd):
         return True
 
 
-@client.command()
+@client.command(
+        help="see what rewards have been awarded today."
+)
 async def chickenToday(ctx, debugDate=None):
     rewards_text = printRewards(debugDate)
     embed = discord.Embed(description = rewards_text)
     await ctx.send(embed = embed)
 
-@client.command()
+@client.command(
+        help="see what rewards could be awarded today based on games scheduled."
+)
 async def chickenPossible(ctx):
     rewards_text = printRewardsPossible()
     embed = discord.Embed(description = rewards_text)
@@ -241,7 +245,9 @@ async def chickenPossible(ctx):
 #     embed = discord.Embed(description = 'Error: task does not exists')
 #     await ctx.send(embed = embed)
 
-@client.command()
+@client.command(
+        help= "takes a time in 24 hour format; sets that time to be when messages will be sent each day. requires admin password as second input."
+)
 async def setMessageTime(ctx, newTime, pwd=""):
     if await pwdCheck(ctx, pwd):
         if not ":" in newTime:
@@ -272,12 +278,16 @@ async def setMessageTime(ctx, newTime, pwd=""):
     
 
 
-@client.command()
+@client.command(
+        help="time that messages will be set each day."
+)
 async def viewMessageTime(ctx):
     embed = discord.Embed(description = 'Time set is ' + messageDaily.next_iteration.strftime("%H:%M"))
     await ctx.send(embed = embed)
 
-@client.command()
+@client.command(
+        help="takes strings, must be a day of the week. Capitalization does not matter but spelling does; prevents message from being sent on those days. requires admin password as second input."
+)
 async def blockDays(ctx, *days, pwd=""):
     if await pwdCheck(ctx, pwd):
         global blacklistedDays
@@ -307,7 +317,9 @@ async def blockDays(ctx, *days, pwd=""):
         embed = discord.Embed(description = message)
         await ctx.send(embed = embed)
 
-@client.command()
+@client.command(
+        help="takes strings, must be a day of the week. Capitalization does not matter but spelling does; removes those days from the list of blocked days. requires admin password as second input."
+)
 async def unblockDays(ctx, *days, pwd=""):
     if await pwdCheck(ctx, pwd):
         global blacklistedDays
@@ -337,7 +349,9 @@ async def unblockDays(ctx, *days, pwd=""):
         embed = discord.Embed(description = message)
         await ctx.send(embed = embed)
 
-@client.command()
+@client.command(
+        help="returns the days messages will not be sent."
+)
 async def viewBlockedDays(ctx):
     global blacklistedDays
     message = "Days blocked:"
@@ -375,7 +389,9 @@ WHERE date > (SELECT DATETIME('now', '-' || ? || ' day'))) result;"""
             #print("The SQLite connection is closed")
             return records
 
-@client.command()
+@client.command(
+        help="takes numeric argument for number of days to look back, defaults to 30; runs an SQLite query to see what rewards have been awarded in the past X days."
+)
 async def chickenHistory(ctx, daysAgo=30):
     if not isinstance(daysAgo, int):
         embed = discord.Embed(description = 'Error: number of days must be an integer')
@@ -491,21 +507,9 @@ def get_API(teamID, sport, debugDate=None):
     return find_team_result(league_scores, teamID)
 
 def printRewardsPossible():
-    global rewardDict
-    rewards_text = ""
-    todays_rewards = defaultdict(int)
-    rewardCounter=0
-    for team in rewardDict:
-        teamData, opponentData = get_API(team.get('ID'), team.get('sport'))
-        if(teamData!=""):
-            for reward_i in team.get('rewards'):
-                if(reward_i.get('homeReq') & bool(teamData.get('homeAway')!="home")):
-                    pass
-                else:
-                    todays_rewards[reward_i.get('reward_tag')]+=1
-                    rewardCounter+=1
+    dummy, rewardCounter, reward_tags = searchRewards()
     rewards_text = ("There are " + str(rewardCounter) + " rewards possible today:")
-    for key, value in todays_rewards.items(): 
+    for key, value in reward_tags.items(): 
         rewards_text = rewards_text + "\n" + str(value) + "x " + key
     return rewards_text
 
@@ -539,6 +543,21 @@ def printRewards(debugDate=None):
         rewards_text = rewards_text + "\n" + text
     return rewards_text
    
+async def setStatus(debugDate=None):
+    dummy, dummy, reward_tags = searchRewards(debugDate)
+    reward_tags=list(reward_tags.keys())
+    if(len(reward_tags)==0):
+        statusText = "No rewards"
+    elif(len(reward_tags)==1):
+        statusText = reward_tags[0]
+    elif(len(reward_tags)==2):
+        statusText = " and ".join(reward_tags)
+    else:
+        statusText = ", ".join(reward_tags[:-1]) + f", and {reward_tags[-1]}"
+    statusText = statusText + " possible today"
+    await client.change_presence(activity=discord.CustomActivity(name=statusText))
+    
+
 
 async def printRewardsasync():
     #Start debugging
@@ -554,6 +573,7 @@ async def printRewardsasync():
     for text in todays_rewards: 
         rewards_text = rewards_text + "\n" + text
     if(rewards_text!=""):
+        await client.change_presence(activity=discord.CustomActivity(name="Winner winner chicken dinner"))
         insertVaribleIntoTable(datetime.today().strftime('%Y-%m-%d'),
                                reward_tags.get('chicken'),
                                reward_tags.get('panda'),
@@ -581,14 +601,25 @@ async def messageDaily():
     global blacklistedDays
     if datetime.now().strftime('%A'). lower() not in blacklistedDays:
         await printRewardsasync()
-        
 
-#TODO: save to config file
-#TODO: better help function
+#loop for setting possible rewards status after midnight     
+@discordTasks.loop(time=time(hour=0,minute=1, tzinfo=local_tz))
+async def setStatusDaily():
+    await setStatus()
+
+#set a status on startup
+@setStatusDaily.before_loop
+async def startupStatusDaily():
+    await setStatus()
+
+
 
 @client.listen()
 async def on_ready():
-    messageDaily.start()
+    if not messageDaily.is_running():
+        messageDaily.start()
+    if not setStatusDaily.is_running():
+        setStatusDaily.start()
 #run bot using token    
 client.run(TOKEN)
 
