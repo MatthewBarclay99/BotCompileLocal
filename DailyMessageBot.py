@@ -507,7 +507,7 @@ def get_API(teamID, sport, debugDate=None):
     return find_team_result(league_scores, teamID)
 
 def printRewardsPossible():
-    dummy, rewardCounter, reward_tags = searchRewards()
+    rewardCounter, reward_tags = searchRewardsPossible()
     rewards_text = ("There are " + str(rewardCounter) + " rewards possible today:")
     for key, value in reward_tags.items(): 
         rewards_text = rewards_text + "\n" + str(value) + "x " + key
@@ -535,6 +535,21 @@ def searchRewards(debugDate=None):
                         rewardCounter+=1
     return todays_rewards, rewardCounter, reward_tags
 
+def searchRewardsPossible(debugDate=None):
+    global rewardDict
+    reward_tags = defaultdict(int)
+    rewardCounter=0
+    for team in rewardDict:
+        teamData, opponentData = get_API(team.get('ID'), team.get('sport'), debugDate)
+        if(teamData!=""):
+            for reward_i in team.get('rewards'):
+                if(reward_i.get('homeReq') & bool(teamData.get('homeAway')!="home")):
+                    pass
+                else:
+                    reward_tags[reward_i.get('reward_tag')]+=1
+                    rewardCounter+=1
+    return rewardCounter, reward_tags
+    
 def printRewards(debugDate=None):
     rewards_text = ""
     todays_rewards, rewardCounter, dummy = searchRewards(debugDate)
@@ -544,7 +559,7 @@ def printRewards(debugDate=None):
     return rewards_text
    
 async def setStatus(debugDate=None):
-    dummy, dummy, reward_tags = searchRewards(debugDate)
+    dummy, reward_tags = searchRewardsPossible(debugDate)
     reward_tags=list(reward_tags.keys())
     if(len(reward_tags)==0):
         statusText = "No rewards"
