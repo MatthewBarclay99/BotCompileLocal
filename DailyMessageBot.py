@@ -479,7 +479,12 @@ def find_team_result(league_results, team_id):
     team = ""
     opponent = ""
     for i, event_dict in enumerate(league_results):
+        # Check each matchup one by one
+        if(event_dict.get('season').get('slug')!="regular-season"):
+            #checking if game is played during regular season (all teams should have same status)
+            break
         for j, competition_dict in enumerate(event_dict.get('competitions')):
+            #check each game one by one
             for k, competitors_dict in enumerate(competition_dict.get('competitors')):
                 if(competitors_dict.get('id')==team_id):
                     found=True
@@ -599,6 +604,8 @@ async def printRewardsasync():
             for channel in guild.text_channels:
                 if(channel.name == 'general'):
                     await channel.send(embed = embed, delete_after=86399)
+    else:
+        await client.change_presence(activity=discord.CustomActivity(name="No rewards today :("))
         
 
 #methods for getting suffix in date, ex "May 10th"
