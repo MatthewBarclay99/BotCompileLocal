@@ -43,11 +43,7 @@ cfa_text = "Free Chic-fil-a sandwich! Open the app before midnight."
 
 Angels = {'ID':"3",
           'sport':"baseball",
-          'rewards':[{'rewardFUN':scoreAtLeast,
-                    'minScore':7,
-                    'homeReq':True,
-                    'reward_text':cfa_text,
-                    'reward_tag':'chicken'},
+          'rewards':[
                     {'rewardFUN':shutout,
                     'homeReq':False,
                     'reward_text':"Free 6in pizza from Mountain Mike's (w/ purchase)",
@@ -58,7 +54,7 @@ Dodgers = {'ID':"19",
            'sport':"baseball",
            'rewards':[{'rewardFUN':winGame,
                     'homeReq':True,
-                    'reward_text':"$5 Panda Express plate! Use promo code 'DODGERSWIN'",
+                    'reward_text':"$6 Panda Express plate! Use promo code 'DODGERSWIN'",
                     'reward_tag':'panda'}
                     ]
           }
