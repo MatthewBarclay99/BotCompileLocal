@@ -3,7 +3,7 @@ from discord.ext import commands
 import yaml
 from discord.ext import tasks as discordTasks
 import requests
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from collections import defaultdict
 import sqlite3
 
@@ -75,7 +75,9 @@ LAFC = {'ID':"18966",
                     'reward_tag':'chicken'}
                     ]
         }
-rewardDict = [Angels,Dodgers,Ducks,LAFC]
+def reset_rewardDict():
+    global rewardDict
+    rewardDict = [Angels,Dodgers,Ducks,LAFC]
 
 #--------Handles Events---------
 @client.event
@@ -267,7 +269,8 @@ async def setMessageTime(ctx, newTime, pwd=""):
         configFile['messageTime']['minutes'] = minutes
         with open('config.yaml', 'w') as file:
             yaml.dump(configFile, file, default_flow_style=False)
-        messageDaily.change_interval(time=time(hour=hours,minute=minutes, tzinfo=local_tz))
+        scheduled_times = generate_times(hours, minutes, local_tz)
+        messageDaily.change_interval(time=scheduled_times)
         messageDaily.restart()
         embed = discord.Embed(description = ' -- Time set (will go into effect after the next scheduled message)')
         await ctx.send(embed = embed)
@@ -514,8 +517,9 @@ def printRewardsPossible():
         rewards_text = rewards_text + "\n" + str(value) + "x " + key
     return rewards_text
 
-def searchRewards(debugDate=None):
+def searchRewards(debugDate=None,popTeam=False):
     global rewardDict
+    teams2keep = rewardDict.copy()
     todays_rewards = []
     rewardCounter=0
     reward_tags = defaultdict(int)
@@ -534,6 +538,9 @@ def searchRewards(debugDate=None):
                         todays_rewards.append(reward_i.get('reward_text'))
                         reward_tags[reward_i.get('reward_tag')]+=1
                         rewardCounter+=1
+                        if popTeam:
+                            teams2keep.remove(team)
+    rewardDict = teams2keep
     return todays_rewards, rewardCounter, reward_tags
 
 def searchRewardsPossible(debugDate=None):
@@ -585,7 +592,7 @@ async def printRewardsasync():
     #End debugging
 
     rewards_text = ""
-    todays_rewards, rewardCounter, reward_tags = searchRewards()
+    todays_rewards, rewardCounter, reward_tags = searchRewards(popTeam=True)
     for text in todays_rewards: 
         rewards_text = rewards_text + "\n" + text
     if(rewards_text!=""):
@@ -613,8 +620,23 @@ async def suffix(d):
 async def custom_strftime(format, t):
     return t.strftime(format).replace('{S}', str(t.day) + await suffix(t.day))
 
+#check multiple times from set start to midnight
+def generate_times(hours, minutes, tzinfo):
+    scheduled_times = []
+    start_dt = datetime.now(tzinfo).replace(hour=hours, minute=minutes, second=0, microsecond=0)
+    midnight = start_dt.replace(hour=0, minute=0) + timedelta(days=1)
+    
+    while start_dt < midnight:
+        scheduled_times.append(start_dt.timetz())  # timetz includes tzinfo
+        start_dt += timedelta(minutes=15)
+    
+    return scheduled_times
+
+scheduled_times = generate_times(hours, minutes, local_tz)
+
+
 #loop for sending message
-@discordTasks.loop(time=time(hour=hours,minute=minutes, tzinfo=local_tz))
+@discordTasks.loop(time=scheduled_times)
 async def messageDaily():
     global blacklistedDays
     if datetime.now().strftime('%A'). lower() not in blacklistedDays:
@@ -624,11 +646,13 @@ async def messageDaily():
 @discordTasks.loop(time=time(hour=0,minute=1, tzinfo=local_tz))
 async def setStatusDaily():
     await setStatus()
+    reset_rewardDict()
 
 #set a status on startup
 @setStatusDaily.before_loop
 async def startupStatusDaily():
     await setStatus()
+    reset_rewardDict()
 
 
 
@@ -638,6 +662,7 @@ async def on_ready():
         messageDaily.start()
     if not setStatusDaily.is_running():
         setStatusDaily.start()
+    reset_rewardDict()
 #run bot using token    
 client.run(TOKEN)
 
